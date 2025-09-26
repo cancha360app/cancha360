@@ -1,1 +1,45 @@
+/* Cancha360 - estilos base */
+
+/* Fondo general en negro */
+body {
+  background-color: #000;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Botones verdes estilo Cancha360 */
+.btn-cancha {
+  background-color: #28a745; /* verde */
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.btn-cancha:hover {
+  background-color: #218838; /* verde más oscuro */
+}
+
+/* Encabezado */
+header {
+  background-color: #111;
+  padding: 20px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  color: #28a745;
+}
+
+/* Sección principal */
+main {
+  padding: 40px 20px;
+  text-align: center;
+}
 
