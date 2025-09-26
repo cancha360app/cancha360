@@ -11,27 +11,72 @@
   <header>
     <h1>Ingresar a Cancha360</h1>
   </header>
+
   <main>
-    <form class="p-4">
+    <form id="login-form" class="p-4">
       <div class="mb-3">
         <label class="form-label">Correo</label>
-        <input type="email" class="form-control" placeholder="tu@correo.com">
+        <input id="email" type="email" class="form-control" placeholder="tu@correo.com" required>
       </div>
       <div class="mb-3">
         <label class="form-label">Contraseña</label>
-        <input type="password" class="form-control" placeholder="******">
+        <input id="password" type="password" class="form-control" placeholder="******" required>
       </div>
-      <a href="dashboard.html" class="btn-cancha">Entrar</a>
+      <button type="submit" class="btn-cancha">Entrar</button>
     </form>
+
+    <p class="text-center mt-3">
+      ¿No tienes cuenta? <a href="#" id="signup-link">Regístrate</a>
+    </p>
+
     <p class="text-center mt-3"><a href="index.html">⬅ Volver al inicio</a></p>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script>
-  // Configuración de Supabase
-  const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co"; 
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4"; 
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-</script>
 
+  <!-- 📌 Aquí empieza la magia de Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    // Configuración de Supabase (reemplaza con tus datos)
+    const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById("login-form");
+    const signupLink = document.getElementById("signup-link");
+
+    // Login
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        alert("❌ Error: " + error.message);
+      } else {
+        alert("✅ Bienvenido!");
+        window.location.href = "dashboard.html"; // redirige al dashboard
+      }
+    });
+
+    // Registro
+    signupLink.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+
+      if (error) {
+        alert("❌ Error: " + error.message);
+      } else {
+        alert("✅ Revisa tu correo para confirmar la cuenta!");
+      }
+    });
+  </script>
+</body>
+</html>
+
+ 
 </body>
 </html>
