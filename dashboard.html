@@ -145,6 +145,53 @@
       });
     }
 
+    // Crear cancha
+const canchaForm = document.getElementById("cancha-form");
+canchaForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nombre = document.getElementById("cancha-nombre").value;
+  const ubicacion = document.getElementById("cancha-ubicacion").value;
+  const precio = document.getElementById("cancha-precio").value;
+
+  const { error } = await supabase.from("canchas").insert([
+    { nombre, ubicacion, precio }
+  ]);
+
+  if (error) {
+    alert("❌ Error al crear cancha: " + error.message);
+  } else {
+    alert("✅ Cancha creada!");
+    canchaForm.reset();
+    loadCanchas();
+  }
+});
+
+// Cargar canchas
+async function loadCanchas() {
+  const { data, error } = await supabase.from("canchas").select("*");
+
+  const lista = document.getElementById("canchas-list");
+  lista.innerHTML = "";
+
+  if (error) {
+    lista.innerHTML = `<li class="list-group-item text-danger">Error: ${error.message}</li>`;
+    return;
+  }
+
+  if (data.length === 0) {
+    lista.innerHTML = `<li class="list-group-item">No hay canchas cargadas aún</li>`;
+    return;
+  }
+
+  data.forEach(c => {
+    const item = document.createElement("li");
+    item.className = "list-group-item";
+    item.textContent = `${c.nombre} - ${c.ubicacion} - $${c.precio}/hora (ID: ${c.id})`;
+    lista.appendChild(item);
+  });
+}
+
+
     // Cerrar sesión
     document.getElementById("logout").addEventListener("click", async () => {
       await supabase.auth.signOut();
@@ -152,6 +199,8 @@
     });
 
     checkSession();
+    loadCanchas();
+
   </script>
 </body>
 </html>
