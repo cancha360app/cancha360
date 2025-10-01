@@ -10,6 +10,33 @@
   <div class="container mt-5">
     <h1>Bienvenido a tu Dashboard ⚽</h1>
     <p id="user-info"></p>
+
+    <!-- Formulario para crear reservas -->
+    <h3 class="mt-4">Crear reserva</h3>
+    <form id="reserva-form" class="mb-4">
+      <div class="mb-3">
+        <label class="form-label">Cancha ID</label>
+        <input type="number" id="cancha-id" class="form-control" placeholder="Ej: 1" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Fecha</label>
+        <input type="date" id="fecha" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Hora inicio</label>
+        <input type="time" id="hora-inicio" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Hora fin</label>
+        <input type="time" id="hora-fin" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-success">Reservar</button>
+    </form>
+
+    <!-- Lista de reservas -->
+    <h3>Tus reservas</h3>
+    <ul id="reservas-list" class="list-group mb-4"></ul>
+
     <button id="logout" class="btn btn-danger">Cerrar sesión</button>
   </div>
 
@@ -19,18 +46,75 @@
     const SUPABASE_KEY = "TU_PUBLIC_ANON_KEY"; 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let currentUser = null;
+
     async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // 🚫 Si no hay sesión, volver al login
         window.location.href = "login.html";
       } else {
-        // ✅ Mostrar info del usuario
-        const user = session.user;
-        document.getElementById("user-info").textContent = 
-          `Has iniciado sesión como: ${user.email}`;
+        currentUser = session.user;
+        document.getElementById("user-info").textContent =
+          `Has iniciado sesión como: ${currentUser.email}`;
+        loadReservas();
       }
+    }
+
+    // Crear reserva
+    const form = document.getElementById("reserva-form");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cancha_id = document.getElementById("cancha-id").value;
+      const fecha = document.getElementById("fecha").value;
+      const hora_inicio = document.getElementById("hora-inicio").value;
+      const hora_fin = document.getElementById("hora-fin").value;
+
+      const { error } = await supabase.from("reservas").insert([
+        {
+          cancha_id,
+          usuario_id: currentUser.id,
+          fecha,
+          hora_inicio,
+          hora_fin
+        }
+      ]);
+
+      if (error) {
+        alert("❌ Error al crear reserva: " + error.message);
+      } else {
+        alert("✅ Reserva creada!");
+        form.reset();
+        loadReservas();
+      }
+    });
+
+    // Cargar reservas del usuario
+    async function loadReservas() {
+      const { data, error } = await supabase
+        .from("reservas")
+        .select("*")
+        .eq("usuario_id", currentUser.id);
+
+      const lista = document.getElementById("reservas-list");
+      lista.innerHTML = "";
+
+      if (error) {
+        lista.innerHTML = `<li class="list-group-item text-danger">Error: ${error.message}</li>`;
+        return;
+      }
+
+      if (data.length === 0) {
+        lista.innerHTML = `<li class="list-group-item">No tienes reservas aún</li>`;
+        return;
+      }
+
+      data.forEach(r => {
+        const item = document.createElement("li");
+        item.className = "list-group-item";
+        item.textContent = `Cancha ${r.cancha_id} - ${r.fecha} de ${r.hora_inicio} a ${r.hora_fin}`;
+        lista.appendChild(item);
+      });
     }
 
     // Cerrar sesión
