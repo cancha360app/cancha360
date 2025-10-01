@@ -149,7 +149,7 @@
       const precio = document.getElementById("cancha-precio").value;
 
       const { error } = await supabase.from("canchas").insert([
-        { nombre, ubicacion, precio }
+        { nombre, ubicacion, precio_por_hora }
       ]);
 
       if (error) {
