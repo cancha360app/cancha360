@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -32,14 +31,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
   const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4"; 
+  const SUPABASE_KEY = "TU_API_KEY"; 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let currentUser = null;
 
   async function checkSession() {
     const { data: { session } } = await supabase.auth.getSession();
-
     if (!session) {
       window.location.href = "login.html";
     } else {
@@ -47,7 +45,6 @@
       document.getElementById("user-info").textContent =
         `Has iniciado sesión como: ${currentUser.email}`;
 
-      // Chequear rol admin
       const { data: userData } = await supabase
         .from("usuarios")
         .select("rol")
@@ -94,7 +91,6 @@
 
   // Partidos disponibles
   async function loadPartidosDisponibles() {
-    // 1. Todas las reservas
     const { data: reservas, error } = await supabase
       .from("reservas")
       .select("id, fecha, hora_inicio, hora_fin, cupo_actual, cupo_max, canchas(nombre)");
@@ -104,25 +100,17 @@
       return;
     }
 
-    // 2. Mis partidos (donde ya estoy anotado)
-    const { data: misPartidos, error: errorMis } = await supabase
+    const { data: misPartidos } = await supabase
       .from("reservas_usuarios")
       .select("reserva_id")
       .eq("usuario_id", currentUser.id);
 
-    if (errorMis) {
-      console.error("Error cargando mis partidos:", errorMis.message);
-      return;
-    }
+    const idsOcupados = misPartidos ? misPartidos.map(r => r.reserva_id) : [];
 
-    const idsOcupados = misPartidos.map(r => r.reserva_id);
-
-    // 3. Filtrar: solo partidos con cupo libre y en los que NO estoy
     const disponibles = reservas.filter(r =>
       !idsOcupados.includes(r.id) && r.cupo_actual < r.cupo_max
     );
 
-    // 4. Renderizar
     const lista = document.getElementById("partidos-disponibles");
     lista.innerHTML = "";
 
@@ -139,7 +127,6 @@
         <button class="btn btn-sm btn-primary">Unirme</button>
       `;
 
-      // Botón para unirse
       item.querySelector("button").addEventListener("click", async () => {
         const { error } = await supabase
           .from("reservas_usuarios")
@@ -152,7 +139,6 @@
             alert("❌ Error al unirse: " + error.message);
           }
         } else {
-          // Actualizar cupo_actual
           await supabase
             .from("reservas")
             .update({ cupo_actual: r.cupo_actual + 1 })
@@ -168,7 +154,6 @@
     });
   }
 
-  // Logout
   document.getElementById("logout").addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.location.href = "login.html";
@@ -178,4 +163,3 @@
   </script>
 </body>
 </html>
-```
