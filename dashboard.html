@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,7 +25,6 @@
     <!-- Lista de partidos disponibles -->
     <h3 class="mt-4">Partidos disponibles</h3>
     <ul id="partidos-disponibles" class="list-group mb-4"></ul>
-
 
     <button id="logout" class="btn btn-danger">Cerrar sesión</button>
   </div>
@@ -59,7 +59,6 @@
       }
 
       loadReservas();
-      loadCanchas();
       loadPartidosDisponibles();
     }
   }
@@ -93,57 +92,78 @@
     });
   }
 
-  // Partidos disponibles (filtrados en JS)
+  // Partidos disponibles (excluye los que ya estoy anotado)
   async function loadPartidosDisponibles() {
-    const { data, error } = await supabase
+    // 1. Todas las reservas con cancha
+    const { data: reservas, error } = await supabase
       .from("reservas")
-      .select("*, canchas(nombre)");
-
-    const lista = document.getElementById("partidos-list");
-    lista.innerHTML = "";
+      .select("id, fecha, hora_inicio, hora_fin, cupo_actual, cupo_max, canchas(nombre)");
 
     if (error) {
-      lista.innerHTML = `<li class="list-group-item text-danger">Error: ${error.message}</li>`;
+      console.error("Error cargando reservas:", error.message);
       return;
     }
 
-    // Filtrar partidos con cupos libres
-    const disponibles = data.filter(p => p.cupo_actual < p.cupo_max);
+    // 2. Mis partidos
+    const { data: misPartidos, error: errorMis } = await supabase
+      .from("reservas_usuarios")
+      .select("reserva_id")
+      .eq("usuario_id", currentUser.id);
+
+    if (errorMis) {
+      console.error("Error cargando mis partidos:", errorMis.message);
+      return;
+    }
+
+    const idsOcupados = misPartidos.map(r => r.reserva_id);
+
+    // 3. Filtrar: solo partidos con cupo libre y en los que NO estoy
+    const disponibles = reservas.filter(r =>
+      !idsOcupados.includes(r.id) && r.cupo_actual < r.cupo_max
+    );
+
+    // 4. Renderizar
+    const lista = document.getElementById("partidos-disponibles");
+    lista.innerHTML = "";
 
     if (disponibles.length === 0) {
-      lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles por ahora</li>`;
+      lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles</li>`;
       return;
     }
 
-    disponibles.forEach(p => {
+    disponibles.forEach(r => {
       const item = document.createElement("li");
       item.className = "list-group-item d-flex justify-content-between align-items-center";
-      item.textContent = `${p.canchas.nombre} - ${p.fecha} ${p.hora_inicio}-${p.hora_fin} | Cupo: ${p.cupo_actual}/${p.cupo_max}`;
-      
-      const btn = document.createElement("button");
-      btn.className = "btn btn-sm btn-outline-success";
-      btn.textContent = "Unirse";
-      btn.onclick = async () => {
-        // Insertar en reservas_usuarios
-        const { error } = await supabase.from("reservas_usuarios").insert([
-          { reserva_id: p.id, usuario_id: currentUser.id }
-        ]);
+      item.innerHTML = `
+        <span>${r.canchas.nombre} - ${r.fecha} ${r.hora_inicio} | Cupo: ${r.cupo_actual}/${r.cupo_max}</span>
+        <button class="btn btn-sm btn-primary">Unirme</button>
+      `;
+
+      // Botón para unirse
+      item.querySelector("button").addEventListener("click", async () => {
+        const { error } = await supabase
+          .from("reservas_usuarios")
+          .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
 
         if (error) {
-          alert("❌ Error al unirse: " + error.message);
+          if (error.message.includes("duplicate key")) {
+            alert("⚠️ Ya estás unido a este partido.");
+          } else {
+            alert("❌ Error al unirse: " + error.message);
+          }
         } else {
-          // Actualizar cupo_actual en reservas
-          await supabase.from("reservas")
-            .update({ cupo_actual: p.cupo_actual + 1 })
-            .eq("id", p.id);
+          // Actualizar cupo_actual
+          await supabase
+            .from("reservas")
+            .update({ cupo_actual: r.cupo_actual + 1 })
+            .eq("id", r.id);
 
           alert("✅ Te uniste al partido!");
           loadReservas();
-          loadCanchas();
           loadPartidosDisponibles();
         }
-      };
-      item.appendChild(btn);
+      });
+
       lista.appendChild(item);
     });
   }
@@ -154,78 +174,8 @@
     window.location.href = "login.html";
   });
 
-
-  // Cargar partidos disponibles (excluye los que ya estoy anotado)
-async function loadPartidosDisponibles() {
-  // 1. Obtengo todas las reservas con su cancha
-  const { data: reservas, error } = await supabase
-    .from("reservas")
-    .select("id, fecha, hora_inicio, hora_fin, cancha_id, canchas(nombre)");
-
-  if (error) {
-    console.error("Error cargando reservas:", error.message);
-    return;
-  }
-
-  // 2. Obtengo los partidos en los que ya estoy anotado
-  const { data: misPartidos, error: errorMis } = await supabase
-    .from("reservas_usuarios")
-    .select("reserva_id")
-    .eq("usuario_id", currentUser.id);
-
-  if (errorMis) {
-    console.error("Error cargando mis partidos:", errorMis.message);
-    return;
-  }
-
-  const idsOcupados = misPartidos.map(r => r.reserva_id);
-
-  // 3. Me quedo solo con los que NO estoy
-  const disponibles = reservas.filter(r => !idsOcupados.includes(r.id));
-
-  // 4. Renderizo en una lista del HTML
-  const lista = document.getElementById("partidos-disponibles");
-  lista.innerHTML = "";
-
-  if (disponibles.length === 0) {
-    lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles</li>`;
-    return;
-  }
-
-  disponibles.forEach(r => {
-    const item = document.createElement("li");
-    item.className = "list-group-item d-flex justify-content-between align-items-center";
-    item.innerHTML = `
-      <span>${r.canchas.nombre} - ${r.fecha} ${r.hora_inicio}</span>
-      <button class="btn btn-sm btn-primary">Unirme</button>
-    `;
-
-    // Botón para unirse
-    item.querySelector("button").addEventListener("click", async () => {
-      const { error } = await supabase
-        .from("reservas_usuarios")
-        .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
-
-      if (error) {
-        if (error.message.includes("duplicate key")) {
-          alert("⚠️ Ya estás unido a este partido.");
-        } else {
-          alert("❌ Error al unirse: " + error.message);
-        }
-      } else {
-        alert("✅ Te uniste al partido!");
-        loadPartidosDisponibles(); // Recargo lista
-      }
-    });
-
-    lista.appendChild(item);
-  });
-}
-
-
   checkSession();
-</script>
-```
-
+  </script>
 </body>
 </html>
+```
