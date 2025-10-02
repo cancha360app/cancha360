@@ -1,41 +1,110 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cancha360 - Crear Partido</title>
+  <title>Crear Partido - Cancha360</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header>
-    <h1>Crear Partido</h1>
-  </header>
-  <main class="p-4">
-    <form>
+  <div class="container mt-5">
+    <h1>➕ Crear Partido</h1>
+    <form id="match-form" class="mt-4">
       <div class="mb-3">
-        <label class="form-label">Título</label>
-        <input type="text" class="form-control" placeholder="Partido en cancha del barrio">
+        <label for="cancha" class="form-label">Cancha</label>
+        <select id="cancha" class="form-select" required></select>
       </div>
       <div class="mb-3">
-        <label class="form-label">Fecha</label>
-        <input type="date" class="form-control">
+        <label for="fecha" class="form-label">Fecha</label>
+        <input type="date" id="fecha" class="form-control" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Hora</label>
-        <input type="time" class="form-control">
+        <label for="hora_inicio" class="form-label">Hora inicio</label>
+        <input type="time" id="hora_inicio" class="form-control" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Lugar</label>
-        <input type="text" class="form-control" placeholder="Cancha Sintética XYZ">
+        <label for="hora_fin" class="form-label">Hora fin</label>
+        <input type="time" id="hora_fin" class="form-control" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Cupos</label>
-        <input type="number" class="form-control" value="10">
+        <label for="cupo_max" class="form-label">Cupo máximo</label>
+        <input type="number" id="cupo_max" class="form-control" min="2" required>
       </div>
-      <a href="match.html" class="btn-cancha">Crear</a>
+      <button type="submit" class="btn btn-success">Crear Partido</button>
+      <a href="dashboard.html" class="btn btn-secondary">Volver</a>
     </form>
-    <p class="mt-3"><a href="dashboard.html">⬅ Volver</a></p>
-  </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4"; 
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = "login.html";
+      } else {
+        currentUser = session.user;
+        loadCanchas();
+      }
+    }
+
+    async function loadCanchas() {
+      const { data, error } = await supabase.from("canchas").select("*");
+      const select = document.getElementById("cancha");
+      select.innerHTML = "";
+      if (error) {
+        alert("Error cargando canchas: " + error.message);
+        return;
+      }
+      data.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.nombre;
+        select.appendChild(opt);
+      });
+    }
+
+    document.getElementById("match-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const cancha_id = document.getElementById("cancha").value;
+      const fecha = document.getElementById("fecha").value;
+      const hora_inicio = document.getElementById("hora_inicio").value;
+      const hora_fin = document.getElementById("hora_fin").value;
+      const cupo_max = document.getElementById("cupo_max").value;
+
+      const { data, error } = await supabase.from("reservas").insert([
+        {
+          cancha_id,
+          usuario_id: currentUser.id,
+          fecha,
+          hora_inicio,
+          hora_fin,
+          cupo_max,
+          cupo_actual: 1 // creador cuenta como primer jugador
+        }
+      ]).select().single();
+
+      if (error) {
+        alert("❌ Error al crear partido: " + error.message);
+      } else {
+        // registrar también al creador en reservas_usuarios
+        await supabase.from("reservas_usuarios").insert([
+          { reserva_id: data.id, usuario_id: currentUser.id }
+        ]);
+        alert("✅ Partido creado con éxito!");
+        window.location.href = "dashboard.html";
+      }
+    });
+
+    checkSession();
+  </script>
 </body>
 </html>
+```
