@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -11,53 +12,19 @@
     <h1>Bienvenido a tu Dashboard ⚽</h1>
     <p id="user-info"></p>
 
-    <!-- Formulario para crear reservas -->
-    <h3 class="mt-4">Crear reserva</h3>
-    <form id="reserva-form" class="mb-4">
-      <div class="mb-3">
-        <label class="form-label">Cancha ID</label>
-        <input type="number" id="cancha-id" class="form-control" placeholder="Ej: 1" required>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Fecha</label>
-        <input type="date" id="fecha" class="form-control" required>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Hora inicio</label>
-        <input type="time" id="hora-inicio" class="form-control" required>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Hora fin</label>
-        <input type="time" id="hora-fin" class="form-control" required>
-      </div>
-      <button type="submit" class="btn btn-success">Reservar</button>
-    </form>
+    <!-- Botones de acción -->
+    <div class="mb-4">
+      <a href="create-match.html" class="btn btn-success me-2">➕ Crear Partido</a>
+      <a href="create-court.html" id="admin-create-court" class="btn btn-primary d-none">🏟️ Crear Cancha</a>
+    </div>
 
-    <!-- Lista de reservas -->
-    <h3>Tus reservas</h3>
+    <!-- Partidos del usuario -->
+    <h3>Tus partidos</h3>
     <ul id="reservas-list" class="list-group mb-4"></ul>
 
-    <!-- Formulario para crear canchas -->
-    <h3 class="mt-4">Crear cancha</h3>
-    <form id="cancha-form" class="mb-4">
-      <div class="mb-3">
-        <label class="form-label">Nombre</label>
-        <input type="text" id="cancha-nombre" class="form-control" placeholder="Ej: Cancha 5 Fútbol 7" required>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Ubicación</label>
-        <input type="text" id="cancha-ubicacion" class="form-control" placeholder="Ej: Montevideo" required>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Precio por hora</label>
-        <input type="number" id="cancha-precio" class="form-control" placeholder="Ej: 1200" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Agregar Cancha</button>
-    </form>
-
-    <!-- Lista de canchas -->
-    <h3>Lista de canchas</h3>
-    <ul id="canchas-list" class="list-group mb-4"></ul>
+    <!-- Partidos disponibles -->
+    <h3>Partidos disponibles</h3>
+    <ul id="partidos-list" class="list-group mb-4"></ul>
 
     <button id="logout" class="btn btn-danger">Cerrar sesión</button>
   </div>
@@ -79,44 +46,28 @@
         currentUser = session.user;
         document.getElementById("user-info").textContent =
           `Has iniciado sesión como: ${currentUser.email}`;
+        
+        // Chequear rol del usuario
+        const { data: userData } = await supabase
+          .from("usuarios")
+          .select("rol")
+          .eq("id", currentUser.id)
+          .single();
+
+        if (userData && userData.rol === "admin") {
+          document.getElementById("admin-create-court").classList.remove("d-none");
+        }
+
         loadReservas();
-        loadCanchas();
+        loadPartidosDisponibles();
       }
     }
 
-    // Crear reserva
-    const form = document.getElementById("reserva-form");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const cancha_id = document.getElementById("cancha-id").value;
-      const fecha = document.getElementById("fecha").value;
-      const hora_inicio = document.getElementById("hora-inicio").value;
-      const hora_fin = document.getElementById("hora-fin").value;
-
-      const { error } = await supabase.from("reservas").insert([
-        {
-          cancha_id,
-          usuario_id: currentUser.id,
-          fecha,
-          hora_inicio,
-          hora_fin
-        }
-      ]);
-
-      if (error) {
-        alert("❌ Error al crear reserva: " + error.message);
-      } else {
-        alert("✅ Reserva creada!");
-        form.reset();
-        loadReservas();
-      }
-    });
-
-    // Cargar reservas del usuario
+    // Tus partidos (reservas creadas o unidas)
     async function loadReservas() {
       const { data, error } = await supabase
-        .from("reservas")
-        .select("*")
+        .from("reservas_usuarios")
+        .select("reserva_id, reservas(*, canchas(nombre))")
         .eq("usuario_id", currentUser.id);
 
       const lista = document.getElementById("reservas-list");
@@ -127,46 +78,28 @@
         return;
       }
 
-      if (data.length === 0) {
-        lista.innerHTML = `<li class="list-group-item">No tienes reservas aún</li>`;
+      if (!data || data.length === 0) {
+        lista.innerHTML = `<li class="list-group-item">No estás anotado en ningún partido</li>`;
         return;
       }
 
       data.forEach(r => {
+        const partido = r.reservas;
         const item = document.createElement("li");
         item.className = "list-group-item";
-        item.textContent = `Cancha ${r.cancha_id} - ${r.fecha} de ${r.hora_inicio} a ${r.hora_fin}`;
+        item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin}`;
         lista.appendChild(item);
       });
     }
 
-    // Crear cancha
-    const canchaForm = document.getElementById("cancha-form");
-    canchaForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    // Partidos disponibles (todavía con cupos libres)
+    async function loadPartidosDisponibles() {
+      const { data, error } = await supabase
+        .from("reservas")
+        .select("*, canchas(nombre)")
+        .gte("cupo_max", supabase.sql`cupo_actual + 1`);
 
-      const nombre = document.getElementById("cancha-nombre").value;
-      const ubicacion = document.getElementById("cancha-ubicacion").value;
-      const precio = document.getElementById("cancha-precio").value;
-
-      const { error } = await supabase.from("canchas").insert([
-        { nombre, ubicacion, precio }
-      ]);
-
-      if (error) {
-        alert("❌ Error al crear cancha: " + error.message);
-      } else {
-        alert("✅ Cancha creada!");
-        canchaForm.reset();
-        loadCanchas();
-      }
-    });
-
-    // Cargar canchas
-    async function loadCanchas() {
-      const { data, error } = await supabase.from("canchas").select("*");
-
-      const lista = document.getElementById("canchas-list");
+      const lista = document.getElementById("partidos-list");
       lista.innerHTML = "";
 
       if (error) {
@@ -174,15 +107,32 @@
         return;
       }
 
-      if (data.length === 0) {
-        lista.innerHTML = `<li class="list-group-item">No hay canchas cargadas aún</li>`;
+      if (!data || data.length === 0) {
+        lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles por ahora</li>`;
         return;
       }
 
-      data.forEach(c => {
+      data.forEach(p => {
         const item = document.createElement("li");
-        item.className = "list-group-item";
-        item.textContent = `${c.nombre} - ${c.ubicacion} - $${c.precio}/hora (ID: ${c.id})`;
+        item.className = "list-group-item d-flex justify-content-between align-items-center";
+        item.textContent = `${p.canchas.nombre} - ${p.fecha} ${p.hora_inicio}-${p.hora_fin} | Cupo: ${p.cupo_actual}/${p.cupo_max}`;
+        
+        const btn = document.createElement("button");
+        btn.className = "btn btn-sm btn-outline-success";
+        btn.textContent = "Unirse";
+        btn.onclick = async () => {
+          const { error } = await supabase.from("reservas_usuarios").insert([
+            { reserva_id: p.id, usuario_id: currentUser.id }
+          ]);
+          if (error) {
+            alert("❌ Error al unirse: " + error.message);
+          } else {
+            alert("✅ Te uniste al partido!");
+            loadReservas();
+            loadPartidosDisponibles();
+          }
+        };
+        item.appendChild(btn);
         lista.appendChild(item);
       });
     }
@@ -197,3 +147,4 @@
   </script>
 </body>
 </html>
+```
