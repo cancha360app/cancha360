@@ -153,6 +153,75 @@
     window.location.href = "login.html";
   });
 
+
+  // Cargar partidos disponibles (excluye los que ya estoy anotado)
+async function loadPartidosDisponibles() {
+  // 1. Obtengo todas las reservas con su cancha
+  const { data: reservas, error } = await supabase
+    .from("reservas")
+    .select("id, fecha, hora_inicio, hora_fin, cancha_id, canchas(nombre)");
+
+  if (error) {
+    console.error("Error cargando reservas:", error.message);
+    return;
+  }
+
+  // 2. Obtengo los partidos en los que ya estoy anotado
+  const { data: misPartidos, error: errorMis } = await supabase
+    .from("reservas_usuarios")
+    .select("reserva_id")
+    .eq("usuario_id", currentUser.id);
+
+  if (errorMis) {
+    console.error("Error cargando mis partidos:", errorMis.message);
+    return;
+  }
+
+  const idsOcupados = misPartidos.map(r => r.reserva_id);
+
+  // 3. Me quedo solo con los que NO estoy
+  const disponibles = reservas.filter(r => !idsOcupados.includes(r.id));
+
+  // 4. Renderizo en una lista del HTML
+  const lista = document.getElementById("partidos-disponibles");
+  lista.innerHTML = "";
+
+  if (disponibles.length === 0) {
+    lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles</li>`;
+    return;
+  }
+
+  disponibles.forEach(r => {
+    const item = document.createElement("li");
+    item.className = "list-group-item d-flex justify-content-between align-items-center";
+    item.innerHTML = `
+      <span>${r.canchas.nombre} - ${r.fecha} ${r.hora_inicio}</span>
+      <button class="btn btn-sm btn-primary">Unirme</button>
+    `;
+
+    // Botón para unirse
+    item.querySelector("button").addEventListener("click", async () => {
+      const { error } = await supabase
+        .from("reservas_usuarios")
+        .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
+
+      if (error) {
+        if (error.message.includes("duplicate key")) {
+          alert("⚠️ Ya estás unido a este partido.");
+        } else {
+          alert("❌ Error al unirse: " + error.message);
+        }
+      } else {
+        alert("✅ Te uniste al partido!");
+        loadPartidosDisponibles(); // Recargo lista
+      }
+    });
+
+    lista.appendChild(item);
+  });
+}
+
+
   checkSession();
 </script>
 ```
