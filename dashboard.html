@@ -72,8 +72,9 @@
         .single();
 
       // Avatar y nombre a mostrar en navbar
-      const avatarUrl = userData?.avatar_url || currentUser.user_metadata?.avatar_url || "https://via.placeholder.com/40";
       const nombre = userData?.nombre || currentUser.email;
+      const avatarUrl = userData?.avatar_url || "https://via.placeholder.com/40";
+
 
       document.getElementById("nav-avatar").src = avatarUrl;
       document.getElementById("nav-nombre").textContent = nombre;
