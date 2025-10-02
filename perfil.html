@@ -86,6 +86,9 @@
         .update({ avatar_url: publicUrl.publicUrl })
         .eq("id", currentUser.id);
 
+      console.log("✅ URL pública generada:", publicUrl.publicUrl);
+
+
       document.getElementById("avatar-img").src = publicUrl.publicUrl;
       alert("✅ Avatar actualizado!");
     });
