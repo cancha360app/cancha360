@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -15,14 +16,14 @@
   </style>
 </head>
 <body>
-  <!-- Navbar con avatar y perfil -->
+  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
       <a class="navbar-brand fw-bold" href="#">Cancha360</a>
       <div class="d-flex align-items-center">
-        <span id="nav-nombre" class="me-3 fw-semibold"></span>
+        <span id="user-name" class="me-3 fw-semibold"></span>
         <a href="perfil.html">
-          <img id="nav-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
+          <img id="user-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
         </a>
       </div>
     </div>
@@ -31,17 +32,17 @@
   <div class="container mt-4">
     <h1>Bienvenido a tu Dashboard ⚽</h1>
 
-    <!-- Botones de acción -->
+    <!-- Botones -->
     <div class="mb-4">
       <a href="create-match.html" class="btn btn-success me-2">➕ Crear Partido</a>
       <a href="create-court.html" id="admin-create-court" class="btn btn-primary d-none">🏟️ Crear Cancha</a>
     </div>
 
-    <!-- Partidos del usuario -->
+    <!-- Tus partidos -->
     <h3>Tus partidos</h3>
     <ul id="reservas-list" class="list-group mb-4"></ul>
 
-    <!-- Lista de partidos disponibles -->
+    <!-- Partidos disponibles -->
     <h3 class="mt-4">Partidos disponibles</h3>
     <ul id="partidos-disponibles" class="list-group mb-4"></ul>
 
@@ -58,35 +59,42 @@
 
   async function checkSession() {
     const { data: { session } } = await supabase.auth.getSession();
-
     if (!session) {
       window.location.href = "login.html";
-    } else {
-      currentUser = session.user;
-
-      // Cargar datos de la tabla usuarios
-      const { data: userData, error } = await supabase
-        .from("usuarios")
-        .select("nombre, avatar_url, rol")
-        .eq("id", currentUser.id)
-        .single();
-
-      // Avatar y nombre a mostrar en navbar
-      const nombre = userData?.nombre || currentUser.email;
-      const avatarUrl = userData?.avatar_url || "https://via.placeholder.com/40";
-
-
-      document.getElementById("nav-avatar").src = avatarUrl;
-      document.getElementById("nav-nombre").textContent = nombre;
-
-      // Mostrar botón de admin si corresponde
-      if (userData?.rol === "admin") {
-        document.getElementById("admin-create-court").classList.remove("d-none");
-      }
-
-      loadReservas();
-      loadPartidosDisponibles();
+      return;
     }
+
+    currentUser = session.user;
+
+    // Leer datos de la tabla usuarios
+    const { data: userData, error } = await supabase
+      .from("usuarios")
+      .select("nombre, avatar_url, rol")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (error) {
+      console.error("Error cargando usuario:", error.message);
+    }
+
+    // Mostrar nombre
+    document.getElementById("user-name").textContent =
+      userData?.nombre || currentUser.email;
+
+    // Mostrar avatar
+    if (userData?.avatar_url) {
+      document.getElementById("user-avatar").src = userData.avatar_url;
+    } else {
+      document.getElementById("user-avatar").src = "https://via.placeholder.com/40?text=👤";
+    }
+
+    // Mostrar botón admin
+    if (userData?.rol === "admin") {
+      document.getElementById("admin-create-court").classList.remove("d-none");
+    }
+
+    loadReservas();
+    loadPartidosDisponibles();
   }
 
   // Tus partidos
@@ -199,3 +207,4 @@
   </script>
 </body>
 </html>
+```
