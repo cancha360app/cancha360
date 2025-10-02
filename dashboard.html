@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -21,9 +20,9 @@
     <div class="container-fluid">
       <a class="navbar-brand fw-bold" href="#">Cancha360</a>
       <div class="d-flex align-items-center">
-        <span id="user-email" class="me-3"></span>
+        <span id="nav-nombre" class="me-3 fw-semibold"></span>
         <a href="perfil.html">
-          <img id="user-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
+          <img id="nav-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
         </a>
       </div>
     </div>
@@ -64,28 +63,23 @@
       window.location.href = "login.html";
     } else {
       currentUser = session.user;
-      document.getElementById("user-email").textContent = currentUser.email;
 
-      // Cargar datos del usuario desde la tabla
-      const { data: userData } = await supabase
+      // Cargar datos de la tabla usuarios
+      const { data: userData, error } = await supabase
         .from("usuarios")
-        .select("rol, avatar_url")
+        .select("nombre, avatar_url, rol")
         .eq("id", currentUser.id)
         .single();
 
-      // Avatar con fallback (1 = avatar personalizado, 2 = avatar de Google, 3 = placeholder)
-      let avatarUrl = "https://via.placeholder.com/40?text=👤";
+      // Avatar y nombre a mostrar en navbar
+      const avatarUrl = userData?.avatar_url || currentUser.user_metadata?.avatar_url || "https://via.placeholder.com/40";
+      const nombre = userData?.nombre || currentUser.email;
 
-      if (userData && userData.avatar_url) {
-        avatarUrl = userData.avatar_url;
-      } else if (currentUser.user_metadata && currentUser.user_metadata.avatar_url) {
-        avatarUrl = currentUser.user_metadata.avatar_url;
-      }
+      document.getElementById("nav-avatar").src = avatarUrl;
+      document.getElementById("nav-nombre").textContent = nombre;
 
-      document.getElementById("user-avatar").src = avatarUrl;
-
-      // Si es admin, mostrar botón
-      if (userData && userData.rol === "admin") {
+      // Mostrar botón de admin si corresponde
+      if (userData?.rol === "admin") {
         document.getElementById("admin-create-court").classList.remove("d-none");
       }
 
@@ -204,4 +198,3 @@
   </script>
 </body>
 </html>
-```
