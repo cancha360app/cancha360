@@ -92,9 +92,9 @@
     });
   }
 
-  // Partidos disponibles (excluye los que ya estoy anotado)
+  // Partidos disponibles
   async function loadPartidosDisponibles() {
-    // 1. Todas las reservas con cancha
+    // 1. Todas las reservas
     const { data: reservas, error } = await supabase
       .from("reservas")
       .select("id, fecha, hora_inicio, hora_fin, cupo_actual, cupo_max, canchas(nombre)");
@@ -104,7 +104,7 @@
       return;
     }
 
-    // 2. Mis partidos
+    // 2. Mis partidos (donde ya estoy anotado)
     const { data: misPartidos, error: errorMis } = await supabase
       .from("reservas_usuarios")
       .select("reserva_id")
