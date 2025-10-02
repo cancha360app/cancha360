@@ -84,7 +84,10 @@
     const googleBtn = document.getElementById("google-login");
     googleBtn.addEventListener("click", async () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google"
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/dashboard.html"
+        }
       });
 
       if (error) {
