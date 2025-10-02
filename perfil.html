@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Perfil de Usuario</title>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    img { border-radius: 50%; width: 120px; height: 120px; object-fit: cover; }
+  </style>
+</head>
+<body>
+  <h2>Mi Perfil</h2>
+  <div>
+    <img id="avatar" src="" alt="Avatar">
+  </div>
+  <p><strong>Nombre:</strong> <span id="nombre"></span></p>
+  <p><strong>Email:</strong> <span id="email"></span></p>
+
+  <h3>Cambiar Avatar</h3>
+  <input type="file" id="avatar-input" accept="image/*">
+  <button onclick="subirAvatar()">Subir Avatar</button>
+
+  <script>
+    const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
+    const SUPABASE_KEY = "TU_API_KEY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+
+    async function cargarPerfil() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Debes iniciar sesión");
+        window.location.href = "login.html";
+        return;
+      }
+      currentUser = user;
+
+      // Obtener datos del usuario desde la tabla "usuarios"
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("nombre, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      document.getElementById("nombre").innerText = data?.nombre || user.email;
+      document.getElementById("email").innerText = user.email;
+      document.getElementById("avatar").src = data?.avatar_url || "https://via.placeholder.com/120";
+    }
+
+    async function subirAvatar() {
+      const fileInput = document.getElementById("avatar-input").files[0];
+      if (!fileInput) {
+        alert("Selecciona un archivo primero");
+        return;
+      }
+
+      // Subir imagen al bucket "avatars"
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .upload(`public/${currentUser.id}.png`, fileInput, { upsert: true });
+
+      if (error) {
+        alert("Error subiendo avatar: " + error.message);
+        return;
+      }
+
+      // Obtener URL pública
+      const { data: publicUrl } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(`public/${currentUser.id}.png`);
+
+      // Guardar URL en la tabla usuarios
+      await supabase.from("usuarios").update({
+        avatar_url: publicUrl.publicUrl
+      }).eq("id", currentUser.id);
+
+      document.getElementById("avatar").src = publicUrl.publicUrl;
+      alert("Avatar actualizado!");
+    }
+
+    cargarPerfil();
+  </script>
+</body>
+</html>
