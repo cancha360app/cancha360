@@ -74,19 +74,26 @@
       .single();
 
     if (error) {
-      console.error("Error cargando usuario:", error.message);
+      console.warn("No se encontró en usuarios, usando fallback:", error.message);
     }
 
-    // Mostrar nombre
-    document.getElementById("user-name").textContent =
-      userData?.nombre || currentUser.email;
+    // Fallback nombre
+    let nombre = currentUser.email;
+    if (userData?.nombre) {
+      nombre = userData.nombre;
+    } else if (currentUser.user_metadata?.full_name) {
+      nombre = currentUser.user_metadata.full_name;
+    }
+    document.getElementById("user-name").textContent = nombre;
 
-    // Mostrar avatar
+    // Fallback avatar
+    let avatarUrl = "https://via.placeholder.com/40?text=👤";
     if (userData?.avatar_url) {
-      document.getElementById("user-avatar").src = userData.avatar_url;
-    } else {
-      document.getElementById("user-avatar").src = "https://via.placeholder.com/40?text=👤";
+      avatarUrl = userData.avatar_url;
+    } else if (currentUser.user_metadata?.avatar_url) {
+      avatarUrl = currentUser.user_metadata.avatar_url;
     }
+    document.getElementById("user-avatar").src = avatarUrl;
 
     // Mostrar botón admin
     if (userData?.rol === "admin") {
