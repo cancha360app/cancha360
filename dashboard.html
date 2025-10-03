@@ -127,7 +127,7 @@
       const partido = r.reservas;
       const item = document.createElement("li");
       item.className = "list-group-item";
-      item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin} | Cupo: ${partido.cupo_actual ?? 0}/${partido.cupo_max}`;
+      item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin}`;
       lista.appendChild(item);
     });
   }
@@ -155,10 +155,16 @@
 
     const idsOcupados = misPartidos.map(r => r.reserva_id);
 
+    // DEBUG: ver qué reservas hay y qué usuario está logueado
+    console.log("Usuario actual:", currentUser.id);
+    reservas.forEach(r => {
+      console.log("Reserva:", r.id, "creador:", r.usuario_id, "cupo:", r.cupo_actual, "/", r.cupo_max);
+    });
+
     const disponibles = reservas.filter(r =>
-      r.usuario_id !== currentUser.id &&
+      String(r.usuario_id) !== String(currentUser.id) &&
       !idsOcupados.includes(r.id) &&
-      (r.cupo_actual ?? 0) < r.cupo_max
+      Number(r.cupo_actual) < Number(r.cupo_max)
     );
 
     const lista = document.getElementById("partidos-disponibles");
@@ -173,7 +179,7 @@
       const item = document.createElement("li");
       item.className = "list-group-item d-flex justify-content-between align-items-center";
       item.innerHTML = `
-        <span>${r.canchas.nombre} - ${r.fecha} ${r.hora_inicio} | Cupo: ${(r.cupo_actual ?? 0)}/${r.cupo_max}</span>
+        <span>${r.canchas.nombre} - ${r.fecha} ${r.hora_inicio} | Cupo: ${r.cupo_actual}/${r.cupo_max}</span>
         <button class="btn btn-sm btn-primary">Unirme</button>
       `;
 
@@ -183,8 +189,17 @@
           .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
 
         if (error) {
-          alert("❌ Error al unirse: " + error.message);
+          if (error.message.includes("duplicate key")) {
+            alert("⚠️ Ya estás unido a este partido.");
+          } else {
+            alert("❌ Error al unirse: " + error.message);
+          }
         } else {
+          await supabase
+            .from("reservas")
+            .update({ cupo_actual: r.cupo_actual + 1 })
+            .eq("id", r.id);
+
           alert("✅ Te uniste al partido!");
           loadReservas();
           loadPartidosDisponibles();
