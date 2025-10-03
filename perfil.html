@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -71,17 +72,16 @@
 
     if (error) {
       console.error("Error cargando perfil:", error.message);
-      return;
     }
 
     document.getElementById("nombre").value = userData?.nombre || "";
     document.getElementById("telefono").value = userData?.telefono || "";
 
-    // Avatar con fallback (tabla, Google, placeholder)
+    // Avatar con fallback
     let avatarUrl = "https://via.placeholder.com/120?text=👤";
-    if (userData && userData.avatar_url) {
+    if (userData?.avatar_url) {
       avatarUrl = userData.avatar_url;
-    } else if (currentUser.user_metadata && currentUser.user_metadata.avatar_url) {
+    } else if (currentUser.user_metadata?.avatar_url) {
       avatarUrl = currentUser.user_metadata.avatar_url;
     }
     document.getElementById("user-avatar").src = avatarUrl;
@@ -96,8 +96,11 @@
 
     const { error } = await supabase
       .from("usuarios")
-      .update({ nombre, telefono })
-      .eq("id", currentUser.id);
+      .upsert({
+        id: currentUser.id,
+        nombre,
+        telefono
+      });
 
     if (error) {
       alert("❌ Error al guardar: " + error.message);
@@ -138,8 +141,10 @@
     // Guardar URL en la tabla usuarios
     const { error: updateError } = await supabase
       .from("usuarios")
-      .update({ avatar_url: publicUrl.publicUrl })
-      .eq("id", currentUser.id);
+      .upsert({
+        id: currentUser.id,
+        avatar_url: publicUrl.publicUrl
+      });
 
     if (updateError) {
       alert("❌ Error al actualizar avatar: " + updateError.message);
@@ -153,3 +158,4 @@
   </script>
 </body>
 </html>
+```
