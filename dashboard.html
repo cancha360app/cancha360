@@ -1,209 +1,139 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Cancha360</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-  </style>
+  <title>Dashboard - Partidos</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#">Cancha360</a>
-      <div class="d-flex align-items-center">
-        <span id="user-name" class="me-3 fw-semibold"></span>
-        <a href="perfil.html">
-          <img id="user-avatar" src="https://placehold.co/40x40" alt="Avatar" class="avatar">
-        </a>
-      </div>
-    </div>
-  </nav>
+  <h1>Dashboard</h1>
+  <p id="usuario"></p>
 
-  <div class="container mt-4">
-    <h1>Bienvenido a tu Dashboard ⚽</h1>
+  <h2>Mis Partidos</h2>
+  <ul id="misPartidos"></ul>
 
-    <!-- Botones -->
-    <div class="mb-4">
-      <a href="create-match.html" class="btn btn-success me-2">➕ Crear Partido</a>
-      <a href="create-court.html" id="admin-create-court" class="btn btn-primary d-none">🏟️ Crear Cancha</a>
-    </div>
+  <h2>Partidos Disponibles</h2>
+  <ul id="partidosDisponibles"></ul>
 
-    <!-- Tus partidos -->
-    <h3>Tus partidos</h3>
-    <ul id="reservas-list" class="list-group mb-4"></ul>
-
-    <!-- Partidos disponibles -->
-    <h3 class="mt-4">Partidos disponibles</h3>
-    <ul id="partidos-disponibles" class="list-group mb-4"></ul>
-
-    <button id="logout" class="btn btn-danger">Cerrar sesión</button>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-  const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 🔑 Configura tu Supabase
+    const supabaseUrl = "https://TU-PROJECT.supabase.co";
+    const supabaseKey = "TU-CLAVE-ANON";
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-  let currentUser = null;
+    let usuarioId = null;
 
-  async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = "login.html";
-      return;
+    // ✅ Cargar sesión y usuario
+    async function cargarSesion() {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        console.error("❌ Sesión inválida, redirigiendo a login.html");
+        window.location.href = "login.html";
+        return;
+      }
+      usuarioId = user.id;
+      console.log("✅ Sesión iniciada como:", usuarioId);
+      document.getElementById("usuario").innerText = "Usuario: " + usuarioId;
+      cargarReservas();
     }
 
-    currentUser = session.user;
-    console.log("✅ Sesión iniciada como:", currentUser.id);
+    // ✅ Cargar reservas (mis partidos y disponibles)
+    async function cargarReservas() {
+      // Todas las reservas
+      let { data: reservas, error } = await supabase.from("reservas").select("*");
+      if (error) {
+        console.error("❌ Error al cargar reservas:", error.message);
+        return;
+      }
 
-    const { data: userData } = await supabase
-      .from("usuarios")
-      .select("nombre, avatar_url, rol")
-      .eq("id", currentUser.id)
-      .single();
+      console.log("📌 Reservas encontradas:", reservas);
 
-    document.getElementById("user-name").textContent = userData?.nombre || currentUser.email;
-    document.getElementById("user-avatar").src = userData?.avatar_url || "https://placehold.co/40x40";
+      // Mis partidos (reservas creadas por mí o donde estoy anotado)
+      const { data: misReservas } = await supabase
+        .from("reservas_usuarios")
+        .select("reserva_id")
+        .eq("usuario_id", usuarioId);
 
-    if (userData?.rol === "admin") {
-      document.getElementById("admin-create-court").classList.remove("d-none");
-    }
+      const idsMisReservas = misReservas.map(r => r.reserva_id);
+      console.log("📌 Mis reservas IDs:", idsMisReservas);
 
-    loadReservas();
-    loadPartidosDisponibles();
-  }
-
-  // Tus partidos
-  async function loadReservas() {
-    const { data, error } = await supabase
-      .from("reservas_usuarios")
-      .select("reserva_id, reservas(*, canchas(nombre))")
-      .eq("usuario_id", currentUser.id);
-
-    const lista = document.getElementById("reservas-list");
-    lista.innerHTML = "";
-
-    if (error) {
-      console.error("❌ Error cargando tus reservas:", error.message);
-      lista.innerHTML = `<li class="list-group-item text-danger">Error: ${error.message}</li>`;
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      lista.innerHTML = `<li class="list-group-item">No estás anotado en ningún partido</li>`;
-      return;
-    }
-
-    data.forEach(r => {
-      const partido = r.reservas;
-      const item = document.createElement("li");
-      item.className = "list-group-item";
-      item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin} | Cupo: ${partido.cupo_actual}/${partido.cupo_max}`;
-      lista.appendChild(item);
-    });
-  }
-
-  // Partidos disponibles
-  async function loadPartidosDisponibles() {
-    const { data: reservas, error } = await supabase
-      .from("reservas")
-      .select("id, fecha, hora_inicio, hora_fin, cupo_actual, cupo_max, usuario_id, canchas(nombre)");
-
-    if (error) {
-      console.error("❌ Error cargando reservas:", error.message);
-      return;
-    }
-
-    const { data: misPartidos } = await supabase
-      .from("reservas_usuarios")
-      .select("reserva_id")
-      .eq("usuario_id", currentUser.id);
-
-    const idsOcupados = misPartidos ? misPartidos.map(r => r.reserva_id) : [];
-
-    const disponibles = reservas.filter(r => {
-      return (
-        r.usuario_id !== currentUser.id &&
-        !idsOcupados.includes(r.id) &&
-        r.cupo_actual < r.cupo_max
+      const misPartidos = reservas.filter(r =>
+        r.usuario_id === usuarioId || idsMisReservas.includes(r.id)
       );
-    });
 
-    console.log("📌 Partidos disponibles:", disponibles);
+      const partidosDisponibles = reservas.filter(r =>
+        r.usuario_id !== usuarioId && !idsMisReservas.includes(r.id)
+      );
 
-    const lista = document.getElementById("partidos-disponibles");
-    lista.innerHTML = "";
+      console.log("📌 Mis partidos:", misPartidos);
+      console.log("📌 Partidos disponibles:", partidosDisponibles);
 
-    if (disponibles.length === 0) {
-      lista.innerHTML = `<li class="list-group-item">No hay partidos disponibles</li>`;
-      return;
+      renderizarLista("misPartidos", misPartidos, false);
+      renderizarLista("partidosDisponibles", partidosDisponibles, true);
     }
 
-    disponibles.forEach(r => {
-      const item = document.createElement("li");
-      item.className = "list-group-item d-flex justify-content-between align-items-center";
-      item.innerHTML = `
-        <span>${r.canchas?.nombre || "Cancha desconocida"} - ${r.fecha} ${r.hora_inicio} | Cupo: ${r.cupo_actual}/${r.cupo_max}</span>
-        <button class="btn btn-sm btn-primary">Unirme</button>
-      `;
+    // ✅ Renderizar listas
+    function renderizarLista(elementId, reservas, permitirUnirse) {
+      const contenedor = document.getElementById(elementId);
+      contenedor.innerHTML = "";
 
-      item.querySelector("button").addEventListener("click", async () => {
-        console.log("👉 Intentando unir usuario", currentUser.id, "a la reserva", r.id);
+      if (reservas.length === 0) {
+        contenedor.innerHTML = "<li>No hay partidos.</li>";
+        return;
+      }
 
-        // Paso 1: Insertar en reservas_usuarios
-        const { error: insertError } = await supabase
-          .from("reservas_usuarios")
-          .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
+      reservas.forEach(r => {
+        const li = document.createElement("li");
+        li.textContent = `Partido #${r.id} - ${r.fecha} ${r.hora_inicio} | ${r.cupo_actual}/${r.cupo_max}`;
 
-        if (insertError) {
-          console.error("❌ Error al insertar en reservas_usuarios:", insertError.message);
-          alert("❌ Error al unirse: " + insertError.message);
-          return;
+        if (permitirUnirse) {
+          const btn = document.createElement("button");
+          btn.textContent = "Unirse";
+          btn.onclick = () => unirseAReserva(r.id);
+          li.appendChild(btn);
         }
-        console.log("✅ Usuario unido en reservas_usuarios");
 
-        // Paso 2: Incrementar cupo
-        const { data: updateData, error: updateError } = await supabase
-          .from("reservas")
-          .update({ cupo_actual: r.cupo_actual + 1 })
-          .eq("id", r.id)
-          .select();
-
-        if (updateError) {
-          console.error("❌ Error al actualizar cupo:", updateError.message);
-          alert("❌ Error al actualizar cupo: " + updateError.message);
-          return;
-        }
-        console.log("✅ Cupo actualizado:", updateData);
-
-        alert("✅ Te uniste al partido");
-        loadPartidosDisponibles();
-        loadReservas();
+        contenedor.appendChild(li);
       });
+    }
 
-      lista.appendChild(item);
-    });
-  }
+    // ✅ Unirse a un partido
+    async function unirseAReserva(reservaId) {
+      console.log("👉 Intentando unir usuario", usuarioId, "a la reserva", reservaId);
 
-  // Logout
-  document.getElementById("logout").addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "login.html";
-  });
+      // 1. Insertar en reservas_usuarios
+      const { error: joinError } = await supabase
+        .from("reservas_usuarios")
+        .insert([{ reserva_id: reservaId, usuario_id: usuarioId }]);
 
-  checkSession();
+      if (joinError) {
+        console.error("❌ Error al unirse:", joinError.message);
+        alert("❌ Error al unirse: " + joinError.message);
+        return;
+      }
+      console.log("✅ Usuario unido en reservas_usuarios");
+
+      // 2. Incrementar contador en reservas
+      const { data, error: updateError } = await supabase
+        .from("reservas")
+        .update({})
+        .eq("id", reservaId)
+        .increment("cupo_actual", 1);
+
+      if (updateError) {
+        console.error("❌ Error al actualizar cupo:", updateError.message);
+        alert("❌ Error al actualizar cupo: " + updateError.message);
+        return;
+      }
+
+      console.log("✅ Cupo actualizado:", data);
+
+      // 3. Refrescar listas
+      cargarReservas();
+    }
+
+    // Iniciar
+    cargarSesion();
   </script>
 </body>
 </html>
-```
