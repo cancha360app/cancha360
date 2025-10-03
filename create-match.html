@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,102 +8,121 @@
 </head>
 <body>
   <div class="container mt-5">
-    <h1>➕ Crear Partido</h1>
-    <form id="match-form" class="mt-4">
+    <h2>➕ Crear Partido</h2>
+
+    <form id="create-match-form" class="mt-4">
+      <div class="mb-3">
+        <label for="fecha" class="form-label">Fecha</label>
+        <input type="date" class="form-control" id="fecha" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="hora_inicio" class="form-label">Hora inicio</label>
+        <input type="time" class="form-control" id="hora_inicio" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="hora_fin" class="form-label">Hora fin</label>
+        <input type="time" class="form-control" id="hora_fin" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="cupo_max" class="form-label">Cupo máximo</label>
+        <input type="number" class="form-control" id="cupo_max" min="2" required>
+      </div>
+
       <div class="mb-3">
         <label for="cancha" class="form-label">Cancha</label>
         <select id="cancha" class="form-select" required></select>
       </div>
-      <div class="mb-3">
-        <label for="fecha" class="form-label">Fecha</label>
-        <input type="date" id="fecha" class="form-control" required>
-      </div>
-      <div class="mb-3">
-        <label for="hora_inicio" class="form-label">Hora inicio</label>
-        <input type="time" id="hora_inicio" class="form-control" required>
-      </div>
-      <div class="mb-3">
-        <label for="hora_fin" class="form-label">Hora fin</label>
-        <input type="time" id="hora_fin" class="form-control" required>
-      </div>
-      <div class="mb-3">
-        <label for="cupo_max" class="form-label">Cupo máximo</label>
-        <input type="number" id="cupo_max" class="form-control" min="2" required>
-      </div>
+
       <button type="submit" class="btn btn-success">Crear Partido</button>
-      <a href="dashboard.html" class="btn btn-secondary">Volver</a>
+      <a href="dashboard.html" class="btn btn-secondary">Cancelar</a>
     </form>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4"; 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = "https://rcpwypqzahsfsudlkwaf.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHd5cHF6YWhzZnN1ZGxrd2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTQwODIsImV4cCI6MjA3NDQ5MDA4Mn0.VPkdTAhTK_tZ6Re_lcdx5E3oxSDS2oYG8YDSATXtcl4"; 
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let currentUser = null;
+  let currentUser = null;
 
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "login.html";
-      } else {
-        currentUser = session.user;
-        loadCanchas();
-      }
+  // Cargar sesión
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = "login.html";
+      return;
+    }
+    currentUser = session.user;
+    console.log("Usuario actual:", currentUser.id);
+    loadCanchas();
+  }
+
+  // Cargar canchas disponibles
+  async function loadCanchas() {
+    const { data, error } = await supabase.from("canchas").select("id, nombre");
+    if (error) {
+      console.error("Error cargando canchas:", error.message);
+      return;
     }
 
-    async function loadCanchas() {
-      const { data, error } = await supabase.from("canchas").select("*");
-      const select = document.getElementById("cancha");
-      select.innerHTML = "";
-      if (error) {
-        alert("Error cargando canchas: " + error.message);
-        return;
-      }
-      data.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.id;
-        opt.textContent = c.nombre;
-        select.appendChild(opt);
-      });
-    }
-
-    document.getElementById("match-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const cancha_id = document.getElementById("cancha").value;
-      const fecha = document.getElementById("fecha").value;
-      const hora_inicio = document.getElementById("hora_inicio").value;
-      const hora_fin = document.getElementById("hora_fin").value;
-      const cupo_max = document.getElementById("cupo_max").value;
-
-      const { data, error } = await supabase.from("reservas").insert([
-        {
-          cancha_id,
-          usuario_id: currentUser.id,
-          fecha,
-          hora_inicio,
-          hora_fin,
-          cupo_max,
-          cupo_actual: 1 // creador cuenta como primer jugador
-        }
-      ]).select().single();
-
-      if (error) {
-        alert("❌ Error al crear partido: " + error.message);
-      } else {
-        // registrar también al creador en reservas_usuarios
-        await supabase.from("reservas_usuarios").insert([
-          { reserva_id: data.id, usuario_id: currentUser.id }
-        ]);
-        alert("✅ Partido creado con éxito!");
-        window.location.href = "dashboard.html";
-      }
+    const select = document.getElementById("cancha");
+    data.forEach(c => {
+      const option = document.createElement("option");
+      option.value = c.id;
+      option.textContent = c.nombre;
+      select.appendChild(option);
     });
+  }
 
-    checkSession();
+  // Crear partido
+  document.getElementById("create-match-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const fecha = document.getElementById("fecha").value;
+    const hora_inicio = document.getElementById("hora_inicio").value;
+    const hora_fin = document.getElementById("hora_fin").value;
+    const cupo_max = parseInt(document.getElementById("cupo_max").value);
+    const cancha_id = parseInt(document.getElementById("cancha").value);
+
+    const { data, error } = await supabase
+      .from("reservas")
+      .insert([{
+        fecha,
+        hora_inicio,
+        hora_fin,
+        cupo_max,
+        cupo_actual: 1,          // 👈 empieza en 1 porque el creador ocupa su lugar
+        usuario_id: currentUser.id, // 👈 se guarda el usuario que crea el partido
+        cancha_id
+      }])
+      .select();
+
+    if (error) {
+      alert("❌ Error creando partido: " + error.message);
+      console.error(error);
+      return;
+    }
+
+    // Insertar también al creador en reservas_usuarios
+    const reservaId = data[0].id;
+    const { error: error2 } = await supabase
+      .from("reservas_usuarios")
+      .insert([{ reserva_id: reservaId, usuario_id: currentUser.id }]);
+
+    if (error2) {
+      alert("⚠️ Partido creado, pero no se agregó el creador a reservas_usuarios: " + error2.message);
+      console.error(error2);
+    } else {
+      alert("✅ Partido creado correctamente");
+      window.location.href = "dashboard.html";
+    }
+  });
+
+  checkSession();
   </script>
 </body>
 </html>
-```
