@@ -22,7 +22,7 @@
       <div class="d-flex align-items-center">
         <span id="user-name" class="me-3 fw-semibold"></span>
         <a href="perfil.html">
-          <img id="user-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
+          <img id="user-avatar" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlZWUiIC8+PC9zdmc+" alt="Avatar" class="avatar">
         </a>
       </div>
     </div>
@@ -64,37 +64,23 @@
     }
 
     currentUser = session.user;
+    console.log("Usuario actual:", currentUser.id);
 
-    // Leer datos de la tabla usuarios
-    const { data: userData, error } = await supabase
+    const { data: userData } = await supabase
       .from("usuarios")
       .select("nombre, avatar_url, rol")
       .eq("id", currentUser.id)
       .single();
 
-    if (error) {
-      console.warn("No se encontró en usuarios, usando fallback:", error.message);
-    }
-
-    // Fallback nombre
-    let nombre = currentUser.email;
-    if (userData?.nombre) {
-      nombre = userData.nombre;
-    } else if (currentUser.user_metadata?.full_name) {
-      nombre = currentUser.user_metadata.full_name;
-    }
+    // Nombre
+    let nombre = userData?.nombre || currentUser.user_metadata?.full_name || currentUser.email;
     document.getElementById("user-name").textContent = nombre;
 
-    // Fallback avatar
-    let avatarUrl = "https://via.placeholder.com/40?text=👤";
-    if (userData?.avatar_url) {
-      avatarUrl = userData.avatar_url;
-    } else if (currentUser.user_metadata?.avatar_url) {
-      avatarUrl = currentUser.user_metadata.avatar_url;
-    }
+    // Avatar
+    let avatarUrl = userData?.avatar_url || currentUser.user_metadata?.avatar_url ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlZWUiIC8+PC9zdmc+";
     document.getElementById("user-avatar").src = avatarUrl;
 
-    // Mostrar botón admin
     if (userData?.rol === "admin") {
       document.getElementById("admin-create-court").classList.remove("d-none");
     }
@@ -127,7 +113,7 @@
       const partido = r.reservas;
       const item = document.createElement("li");
       item.className = "list-group-item";
-      item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin}`;
+      item.textContent = `${partido.canchas.nombre} - ${partido.fecha} ${partido.hora_inicio}-${partido.hora_fin} | Cupo: ${partido.cupo_actual}/${partido.cupo_max}`;
       lista.appendChild(item);
     });
   }
@@ -143,29 +129,21 @@
       return;
     }
 
-    const { data: misPartidos, error: errorMis } = await supabase
+    const { data: misPartidos } = await supabase
       .from("reservas_usuarios")
       .select("reserva_id")
       .eq("usuario_id", currentUser.id);
 
-    if (errorMis) {
-      console.error("Error cargando mis partidos:", errorMis.message);
-      return;
-    }
+    const idsOcupados = misPartidos ? misPartidos.map(r => r.reserva_id) : [];
 
-    const idsOcupados = misPartidos.map(r => r.reserva_id);
-
-    // DEBUG: ver qué reservas hay y qué usuario está logueado
-    console.log("Usuario actual:", currentUser.id);
-    reservas.forEach(r => {
+    const disponibles = reservas.filter(r => {
       console.log("Reserva:", r.id, "creador:", r.usuario_id, "cupo:", r.cupo_actual, "/", r.cupo_max);
+      return (
+        r.usuario_id !== currentUser.id &&       // no mostrar los que yo mismo creé
+        !idsOcupados.includes(r.id) &&           // no mostrar si ya estoy anotado
+        r.cupo_actual < r.cupo_max               // solo si hay lugar
+      );
     });
-
-    const disponibles = reservas.filter(r =>
-      String(r.usuario_id) !== String(currentUser.id) &&
-      !idsOcupados.includes(r.id) &&
-      Number(r.cupo_actual) < Number(r.cupo_max)
-    );
 
     const lista = document.getElementById("partidos-disponibles");
     lista.innerHTML = "";
@@ -189,21 +167,19 @@
           .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
 
         if (error) {
-          if (error.message.includes("duplicate key")) {
-            alert("⚠️ Ya estás unido a este partido.");
-          } else {
-            alert("❌ Error al unirse: " + error.message);
-          }
-        } else {
-          await supabase
-            .from("reservas")
-            .update({ cupo_actual: r.cupo_actual + 1 })
-            .eq("id", r.id);
-
-          alert("✅ Te uniste al partido!");
-          loadReservas();
-          loadPartidosDisponibles();
+          alert("❌ Error al unirse: " + error.message);
+          return;
         }
+
+        // Actualizar cupo_actual
+        await supabase
+          .from("reservas")
+          .update({ cupo_actual: r.cupo_actual + 1 })
+          .eq("id", r.id);
+
+        alert("✅ Te uniste al partido");
+        loadPartidosDisponibles();
+        loadReservas();
       });
 
       lista.appendChild(item);
