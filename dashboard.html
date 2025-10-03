@@ -153,28 +153,29 @@
       `;
 
       item.querySelector("button").addEventListener("click", async () => {
-        // 1. Insertar en reservas_usuarios
-        const { error: insertError } = await supabase
-          .from("reservas_usuarios")
-          .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
+  // 1) Insertar en reservas_usuarios
+  const { error: insertError } = await supabase
+    .from("reservas_usuarios")
+    .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
 
-        if (insertError) {
-          alert("❌ Error al unirse: " + insertError.message);
-          return;
-        }
+  if (insertError) {
+    alert("❌ Error al unirse: " + insertError.message);
+    return;
+  }
 
-        // 2. Llamar a la función incrementar_cupo en Supabase
-        const { error: funcError } = await supabase.rpc("incrementar_cupo", { id_reserva: r.id });
+  // 2) Llamar a la función para incrementar el cupo
+  const { error: fnError } = await supabase.rpc("incrementar_cupo", { id_reserva: r.id });
 
-        if (funcError) {
-          alert("❌ Error al actualizar cupo: " + funcError.message);
-          return;
-        }
+  if (fnError) {
+    alert("❌ Error al actualizar cupo: " + fnError.message);
+    return;
+  }
 
-        alert("✅ Te uniste al partido");
-        loadPartidosDisponibles();
-        loadReservas();
-      });
+  alert("✅ Te uniste al partido");
+  loadPartidosDisponibles();
+  loadReservas();
+});
+
 
       lista.appendChild(item);
     });
