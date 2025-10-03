@@ -183,35 +183,5 @@
           .from("reservas_usuarios")
           .insert([{ reserva_id: r.id, usuario_id: currentUser.id }]);
 
-        if (error) {
-          if (error.message.includes("duplicate key")) {
-            alert("⚠️ Ya estás unido a este partido.");
-          } else {
-            alert("❌ Error al unirse: " + error.message);
-          }
-        } else {
-          await supabase
-            .from("reservas")
-            .update({ cupo_actual: r.cupo_actual + 1 })
-            .eq("id", r.id);
-
-          alert("✅ Te uniste al partido!");
-          loadReservas();
-          loadPartidosDisponibles();
-        }
-      });
-
-      lista.appendChild(item);
-    });
-  }
-
-  document.getElementById("logout").addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "login.html";
-  });
-
-  checkSession();
-  </script>
-</body>
-</html>
+        if
 ```
